@@ -1,0 +1,660 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>瘋狂農場果實計算器</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: 左欄依序填果實 → 型態 → 天氣；右欄是固定的結果面板，手機版改成底部價格列 */
+:root {
+  --bg: #edf2ee;
+  --surface: #fbfdfb;
+  --ink: #15251b;
+  --muted: #5a6b5f;
+  --line: #d3ded5;
+  --accent: #1d6b44;
+  --accent-ink: #ffffff;
+  --coin: #a86f00;
+  --moon: #4a4ea6;
+  --warn: #b4501a;
+  --t-gray: #6b7280; --t-gray-ink: #ffffff;
+  --t-green: #2b7d39; --t-green-ink: #ffffff;
+  --t-blue: #2f6fd6; --t-blue-ink: #ffffff;
+  --t-purple: #7b3fd0; --t-purple-ink: #ffffff;
+  --t-orange: #e8891c; --t-orange-ink: #1a1205;
+  --g-rainbow: linear-gradient(110deg, #e53935, #fdd835 35%, #43a047 62%, #1e40ff);
+  --g-star: linear-gradient(115deg, #d9ccff, #8a6bff 35%, #f3eeff 55%, #7a55f5 80%, #c9b8ff);
+  --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-num: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1812; --surface: #15231b; --ink: #e5efe7; --muted: #92a79a; --line: #27382d;
+    --accent: #5fcf92; --accent-ink: #0a1a10; --coin: #f2b73c; --moon: #a9acff; --warn: #f09a62;
+    --t-gray: #9aa3b2; --t-gray-ink: #10161d;
+    --t-green: #5fcf7a; --t-green-ink: #08200f;
+    --t-blue: #6aa3ff; --t-blue-ink: #07162e;
+    --t-purple: #b18cff; --t-purple-ink: #1a0b36;
+    --t-orange: #f5a847; --t-orange-ink: #1a1205;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1812; --surface: #15231b; --ink: #e5efe7; --muted: #92a79a; --line: #27382d;
+  --accent: #5fcf92; --accent-ink: #0a1a10; --coin: #f2b73c; --moon: #a9acff; --warn: #f09a62;
+  --t-gray: #9aa3b2; --t-gray-ink: #10161d;
+  --t-green: #5fcf7a; --t-green-ink: #08200f;
+  --t-blue: #6aa3ff; --t-blue-ink: #07162e;
+  --t-purple: #b18cff; --t-purple-ink: #1a0b36;
+  --t-orange: #f5a847; --t-orange-ink: #1a1205;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6; padding-inline: 16px; padding-block: 28px 40px; }
+.wrap { max-width: 1040px; margin: 0 auto; }
+h1 { font-size: clamp(1.6rem, 4vw + 0.6rem, 2.3rem); font-weight: 900; letter-spacing: 0.02em; line-height: 1.2; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 6px 0 0; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 40px; margin-top: 28px; align-items: start; }
+.col-main { display: flex; flex-direction: column; min-width: 0; }
+.sec { padding-block: 22px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.sec:first-child { border-top: 0; padding-top: 0; }
+.sec h2 { margin: 0; font-size: 1.05rem; font-weight: 700; display: flex; align-items: baseline; gap: 10px; }
+.step { font-family: var(--font-num); font-size: 0.78rem; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 0 6px; line-height: 1.5; }
+.hint { color: var(--muted); font-size: 0.85rem; margin: 0; }
+.sec h3 { margin: 0; font-size: 0.78rem; font-weight: 500; color: var(--muted); letter-spacing: 0.08em; }
+
+label.f { display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; color: var(--muted); min-width: 0; }
+input[type="text"], input[type="number"] {
+  font: inherit; font-size: 1rem; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; min-width: 0;
+}
+input[type="number"] { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.pct { font-family: var(--font-num); font-size: 0.8rem; color: var(--accent); min-height: 1.2em; }
+.pct.over { color: var(--warn); }
+.badge { display: inline-block; font-size: 0.75rem; color: var(--warn); border: 1px solid var(--warn); border-radius: 999px; padding: 0 8px; margin-left: 8px; font-weight: 500; }
+
+.combo { position: relative; }
+.combo ul { position: absolute; z-index: 5; inset-inline: 0; top: calc(100% + 4px); margin: 0; padding: 4px; list-style: none; max-height: 280px; overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); }
+.combo li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.combo li .meta { font-family: var(--font-num); font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+.combo li[aria-selected="true"], .combo li:hover { background: var(--bg); }
+.combo .empty { color: var(--muted); cursor: default; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { --c: var(--line); --ci: var(--ink); font: inherit; font-size: 0.92rem; color: var(--ink); background: color-mix(in srgb, var(--c) 16%, var(--surface)); border: 1.5px solid var(--c); border-radius: 10px; padding: 7px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.chip .x { font-family: var(--font-num); font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip[data-t="gray"] { --c: var(--t-gray); --ci: var(--t-gray-ink); }
+.chip[data-t="green"] { --c: var(--t-green); --ci: var(--t-green-ink); }
+.chip[data-t="blue"] { --c: var(--t-blue); --ci: var(--t-blue-ink); }
+.chip[data-t="purple"] { --c: var(--t-purple); --ci: var(--t-purple-ink); }
+.chip[data-t="orange"] { --c: var(--t-orange); --ci: var(--t-orange-ink); }
+.chip[data-t="rainbow"], .chip[data-t="star"] { border-color: transparent; background: linear-gradient(color-mix(in srgb, var(--surface) 70%, transparent), color-mix(in srgb, var(--surface) 70%, transparent)), var(--grad); }
+.chip[data-t="rainbow"] { --grad: var(--g-rainbow); }
+.chip[data-t="star"] { --grad: var(--g-star); }
+.chip:hover:not(:disabled) { filter: brightness(1.08); }
+.chip[aria-pressed="true"] { background: var(--c); color: var(--ci); box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.chip[aria-pressed="true"] .x { color: inherit; opacity: 0.85; }
+.chip[aria-pressed="true"]::before { content: "\2713"; font-weight: 700; }
+.chip[data-t="rainbow"][aria-pressed="true"], .chip[data-t="star"][aria-pressed="true"] { background: var(--grad); color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+.chip:disabled { border-style: dashed; background: var(--surface); opacity: 0.7; cursor: not-allowed; }
+.forms .chip { padding: 9px 14px; }
+.linkbtn { font: inherit; font-size: 0.82rem; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; align-self: flex-start; }
+
+.result { position: sticky; top: calc(16px + env(safe-area-inset-top, 0px)); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.result .cap { font-size: 0.8rem; color: var(--muted); letter-spacing: 0.08em; }
+.result .name { font-weight: 700; font-size: 1.1rem; overflow-wrap: anywhere; }
+.price { font-family: var(--font-num); font-weight: 700; font-size: clamp(1.7rem, 5vw, 2.1rem); line-height: 1.15; color: var(--coin); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.price-cn { font-size: 0.95rem; color: var(--muted); min-height: 1.4em; }
+dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 0.9rem; border-top: 1px solid var(--line); padding-top: 14px; }
+dt { color: var(--muted); }
+dd { margin: 0; text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.formula { font-family: var(--font-num); font-size: 0.8rem; color: var(--muted); background: var(--bg); border-radius: 8px; padding: 10px 12px; overflow-wrap: anywhere; }
+.picked { font-size: 0.82rem; color: var(--muted); margin: 0; overflow-wrap: anywhere; }
+.note { color: var(--muted); font-size: 0.82rem; margin-top: 8px; border-top: 1px solid var(--line); padding-top: 16px; }
+.note p { margin: 0 0 6px; }
+
+.badge.ok { color: var(--accent); border-color: var(--accent); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { font: inherit; font-size: 0.9rem; color: var(--accent-ink); background: var(--accent); border: 1.5px solid var(--accent); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+.btn.ghost { color: var(--accent); background: transparent; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.grp { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 0 14px; margin-bottom: 8px; }
+.grp summary { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; padding: 10px 0; cursor: pointer; }
+.grp .gn { font-weight: 700; }
+.grp .gv { font-family: var(--font-num); color: var(--coin); font-variant-numeric: tabular-nums; }
+.grp .gm { color: var(--muted); font-size: 0.82rem; }
+.grp .gbody { display: flex; flex-direction: column; gap: 10px; padding-bottom: 12px; }
+.grp .warnline { color: var(--warn); font-size: 0.85rem; margin: 0; }
+.tbl { overflow-x: auto; }
+.tbl table { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
+.tbl th, .tbl td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tbl th:first-child, .tbl td:first-child { text-align: left; }
+.tbl td.num { font-family: var(--font-num); }
+.tbl button { font: inherit; font-size: 0.78rem; color: var(--warn); background: none; border: 0; cursor: pointer; text-decoration: underline; }
+.bar { display: none; }
+@media (max-width: 860px) {
+  .grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .result { position: static; }
+  body { padding-bottom: 96px; }
+  .bar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--surface); border-top: 1px solid var(--line); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); align-items: baseline; justify-content: space-between; gap: 12px; }
+  .bar .n { font-size: 0.85rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .bar .p { font-family: var(--font-num); font-weight: 700; font-size: 1.15rem; color: var(--coin); white-space: nowrap; font-variant-numeric: tabular-nums; }
+}
+@media (max-width: 480px) { .row { grid-template-columns: repeat(2, minmax(0, 1fr)); } .row .full { grid-column: 1 / -1; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<main class="wrap">
+  <header>
+    <h1>瘋狂農場果實計算器</h1>
+    <p class="sub">蛋仔派對・瘋狂農場。填入果實與重量，選好型態和天氣，就能算出預估售價。</p>
+  </header>
+
+  <div class="grid">
+    <div class="col-main">
+      <section class="sec">
+        <h2><span class="step">1</span>果實與重量</h2>
+        <label class="f" for="crop">果實名稱<div class="combo" style="margin-top:0">
+          <input type="text" id="crop" role="combobox" aria-expanded="false" aria-controls="croplist" aria-autocomplete="list" autocomplete="off" placeholder="輸入或點選果實，例如：大王菊">
+          <ul id="croplist" role="listbox" hidden></ul>
+        </div></label>
+        <div class="row">
+          <label class="f" for="weight">重量 (kg)
+            <input type="number" id="weight" inputmode="decimal" min="0" step="0.01" value="5.1">
+          </label>
+          <label class="f" for="max">最高重量 (kg)
+            <input type="number" id="max" inputmode="decimal" min="0" step="0.1">
+          </label>
+          <label class="f full" for="base">基礎價值<span id="nobase" class="badge" hidden>表內未收錄，請自行輸入</span>
+            <input type="number" id="base" inputmode="numeric" min="0" step="1">
+          </label>
+        </div>
+        <div class="pct" id="pct" aria-live="polite"></div>
+      </section>
+
+      <section class="sec">
+        <h2><span class="step">2</span>型態</h2>
+        <div class="chips forms" id="forms" role="group" aria-label="果實型態"></div>
+      </section>
+
+      <section class="sec">
+        <h2><span class="step">3</span>天氣</h2>
+        <p class="hint">可以多選，倍數會相加。沒有選任何天氣時，天氣倍數當作 ×1。</p>
+        <div class="chips" id="weather" role="group" aria-label="天氣"></div>
+        <h3>異彩 / 幻彩（只能擇一）</h3>
+        <div class="chips" id="prism" role="group" aria-label="異彩或幻彩"></div>
+        <p class="hint" id="unk" hidden></p>
+        <button class="linkbtn" id="clear" type="button">清除所有天氣</button>
+      </section>
+
+      <section class="sec" id="admin" hidden>
+        <h2><span class="step">4</span>校正基礎價值<span class="badge ok">只有你看得到</span></h2>
+        <p class="hint">用上面選好的果實、重量、型態和天氣，輸入遊戲顯示的實際售價，就能反推基礎價值。同一種果實存幾筆，範圍會越縮越小。</p>
+        <label class="f" for="price">遊戲顯示的實際售價
+          <input type="text" id="price" inputmode="decimal" autocomplete="off" placeholder="例如 1,354,380,954 或 1.38B">
+        </label>
+        <div class="pct" id="implied" aria-live="polite"></div>
+        <div class="actions">
+          <button class="btn" id="save-sample" type="button">儲存樣本</button>
+          <button class="btn ghost" id="save-base" type="button">把目前基礎價值存給這個果實</button>
+          <button class="btn ghost" id="reset-base" type="button">還原內建數值</button>
+        </div>
+        <div class="hint" id="admin-msg" role="status"></div>
+        <h3>已記錄的樣本</h3>
+        <div id="samples"></div>
+      </section>
+
+      <div class="note">
+        <p>公式：基礎價值 × (重量 ÷ 最高重量) × 型態倍數 × 天氣倍數總和。</p>
+        <p>資料來自玩家整理的圖表，可能有誤差。基礎價值只有部分至臻果實有收錄，其他果實請自行填入。</p>
+        <p>組合突變：潮濕＋結霜＝冰凍，潮濕＋沙塵＝陶化，灼熱＋陶化＝瓷化，太陽耀斑＋灼熱（沒有沙塵）＝流火。合成後請只勾合成後的天氣。</p>
+      </div>
+    </div>
+
+    <aside class="result" aria-label="計算結果">
+      <div class="cap">預估售價</div>
+      <div class="name" id="r-name">—</div>
+      <div class="price" id="r-price">—</div>
+      <div class="price-cn" id="r-cn"></div>
+      <dl>
+        <dt>基礎價值</dt><dd id="r-base">—</dd>
+        <dt>重量佔比</dt><dd id="r-pct">—</dd>
+        <dt>型態</dt><dd id="r-form">—</dd>
+        <dt>天氣倍數</dt><dd id="r-sum">—</dd>
+      </dl>
+      <div class="formula" id="r-formula">—</div>
+      <p class="picked" id="r-picked"></p>
+    </aside>
+  </div>
+</main>
+
+<div class="bar" aria-hidden="true"><span class="n" id="b-name">—</span><span class="p" id="b-price">—</span></div>
+
+<script>
+/* ========== 資料表：要改數值就改這裡 ========== */
+// base 為 null 代表表內沒有基礎價值，網頁會請使用者自行輸入
+const CROPS = [
+  { n: "跳舞的柿黛拉", max: 45.2, base: 2670302 },
+  { n: "火龍狗", max: 34, base: 2159006 },
+  { n: "秋水仙", max: 34, base: 2051805 },
+  { n: "月蟾蜍", max: 34, base: 1942437 },
+  { n: "仙人掌象", max: 34, base: 1888416 },
+  { n: "蘆薈", max: 10.2, base: 1753745 },
+  { n: "驚奇菇", max: 10.2, base: 1594272 },
+  { n: "彼岸花", max: 10.2, base: 1593182 },
+  { n: "鈴蘭幽幽", max: 23.8, base: 1403639 },
+  { n: "月兔", max: 23.8, base: 1295115 },
+  { n: "星空玫瑰", max: 10.2, base: 1062530 },
+  { n: "魔鬼朝天椒", max: 10.2, base: 1061927 },
+  { n: "幻月花", max: 23.8, base: 971446 },
+  { n: "紅包樹", max: 5.1, base: 957842 },
+  { n: "大王菊", max: 10.2, base: 796967 },
+  { n: "蟠桃", max: 20.4, base: 808610 },
+  { n: "葡萄", max: 10.2, base: 796684 },
+  { n: "月影梅", max: 3.4, base: 484727 },
+  { n: "馬蹄蓮", max: 17, base: 356156 },
+  { n: "松果", max: 17, base: 323735 },
+  { n: "向日葵", max: 51, base: 134923 },
+  { n: "土豆", max: 11.9, base: null }, { n: "月光草", max: 3.4, base: null },
+  { n: "番茄", max: 10.2, base: null }, { n: "灰壤豆", max: 3.4, base: null },
+  { n: "波斯菊", max: 34, base: null }, { n: "香菇", max: 3.4, base: null },
+  { n: "月燈草", max: 5.1, base: null }, { n: "黃瓜", max: 13.6, base: null },
+  { n: "月番茄", max: 10.2, base: null }, { n: "竹子", max: 136, base: null },
+  { n: "大豆", max: 3.4, base: null }, { n: "西瓜", max: 170, base: null },
+  { n: "白菜", max: 10.2, base: null }, { n: "月環樹", max: 20.4, base: null },
+  { n: "玉米", max: 40.8, base: null }, { n: "橘子", max: 13.6, base: null },
+  { n: "藍莓", max: 40.8, base: null }, { n: "梨", max: 13.6, base: null },
+  { n: "牽牛花", max: 5.1, base: null }, { n: "棉花", max: 5.2, base: null },
+  { n: "銀輝苔", max: 5.1, base: null }, { n: "花生", max: 5.1, base: null },
+  { n: "蘋果", max: 37.4, base: null }, { n: "南瓜", max: 204, base: null },
+  { n: "柿子", max: 37.6, base: null }, { n: "石榴", max: 20.4, base: null },
+  { n: "香蕉", max: 10.2, base: null }, { n: "月莓", max: 8.5, base: null },
+  { n: "龍眼", max: 8.5, base: null }, { n: "車厘子", max: 10.5, base: null },
+  { n: "椰子", max: 40.8, base: null }, { n: "星葉菜", max: 10.2, base: null },
+  { n: "獼猴桃", max: 13.6, base: null }, { n: "草莓", max: 8.5, base: null },
+  { n: "榴蓮", max: 61.2, base: null }, { n: "柚子", max: 61.2, base: null },
+  { n: "荔枝", max: 23.8, base: null }, { n: "月核樹", max: 17, base: null },
+  { n: "液光藤", max: 20.4, base: null }, { n: "菠菜", max: 20.4, base: null }
+];
+const FORMS = [
+  { n: "白", m: 1, t: "gray" }, { n: "銀", m: 3, t: "green" }, { n: "金", m: 10, t: "blue" },
+  { n: "水晶", m: 20, t: "orange" }, { n: "流光", m: 30, t: "rainbow" }, { n: "星空", m: 40, t: "star" }
+];
+// [名稱, 倍數, 顏色等級]。倍數為 null 代表表內還沒有數值，先不能選
+const WEATHER = [
+  ["潮濕", 1, "gray"], ["顫慄", 1, "gray"], ["覆雪", 2, "gray"], ["迷霧", 2, "gray"], ["生機", 2, "gray"],
+  ["結霜", 2, "gray"], ["灼熱", 2, "gray"], ["沙塵", 2, "gray"],
+  ["落雷", 3, "green"], ["冰凍", 4, "green"], ["隕石", 4, "green"], ["陶化", 4, "green"],
+  ["彩虹", 5, "blue"], ["螢光", 5, "blue"], ["血月", 5, "blue"], ["極光", 5, "blue"], ["幽魂", 5, "blue"],
+  ["驚魂夜", 5, "blue"], ["哈基米", 5, "blue"], ["彩塵", 5, "blue"],
+  ["太陽耀斑", 5, "blue"], ["暗霧", 6, "blue"], ["琥珀", 4, "blue"],
+  ["星環", 10, "purple"], ["亮晶晶", 10, "purple"], ["瓷化", 8, "purple"], ["日蝕", 10, "purple"],
+  ["流火", 15, "orange"], ["橙鑽", 18, "orange"], ["霓虹", 18, "rainbow"]
+];
+const PRISM = [["異彩", 1.5, "blue"], ["幻彩", 3, "orange"]];
+
+/* ========== 計算 ========== */
+// <calc>
+function calc(o) {
+  const pct = o.max > 0 ? o.weight / o.max : 0;
+  const formMul = FORMS[o.form].m;
+  let sum = 0;
+  o.weather.forEach(function (m) { sum += m; });
+  if (o.prism != null) sum += PRISM[o.prism][1];
+  const mult = sum > 0 ? sum : 1;
+  const price = o.base * pct * formMul * mult;
+  return { pct: pct, formMul: formMul, sum: sum, mult: mult, price: price };
+}
+// </calc>
+
+/* ========== 畫面 ========== */
+const $ = function (id) { return document.getElementById(id); };
+const state = { crop: null, form: 2, weather: new Set(), prism: null };
+const weatherMul = {};
+WEATHER.forEach(function (w) { if (w[1] != null) weatherMul[w[0]] = w[1]; });
+
+function num(el) { const v = parseFloat(el.value); return isFinite(v) && v > 0 ? v : 0; }
+function trim(n) { return String(parseFloat(n.toFixed(2))); }
+function fmt(n) { return Math.round(n).toLocaleString("en-US"); }
+function fmtCn(n) {
+  if (n >= 1e12) return "約 " + trim(n / 1e12) + " 兆";
+  if (n >= 1e8) return "約 " + trim(n / 1e8) + " 億";
+  if (n >= 1e4) return "約 " + trim(n / 1e4) + " 萬";
+  return "";
+}
+
+CROPS.forEach(function (c) { c.base0 = c.base; c.max0 = c.max; });
+let baseTouched = false, maxTouched = false;
+
+/* 果實下拉 */
+const cropEl = $("crop"), listEl = $("croplist");
+let active = -1, shown = [];
+// 清單順序照「作物價值排名表」的名次，沒收錄的排在後面
+const ranked = CROPS.filter(function (c) { return c.base != null; });
+ranked.forEach(function (c, i) { c.rank = i + 1; });
+const ordered = ranked.concat(CROPS.filter(function (c) { return c.base == null; }));
+
+function renderList() {
+  const q = cropEl.value.trim();
+  shown = ordered.filter(function (c) { return !q || c.n.indexOf(q) !== -1; });
+  listEl.innerHTML = "";
+  if (!shown.length) {
+    const li = document.createElement("li");
+    li.className = "empty"; li.textContent = "沒有這個果實，可以直接在下方自行輸入數值";
+    listEl.appendChild(li);
+  }
+  shown.forEach(function (c, i) {
+    const li = document.createElement("li");
+    li.setAttribute("role", "option");
+    li.setAttribute("aria-selected", i === active ? "true" : "false");
+    const a = document.createElement("span"); a.textContent = c.n;
+    const b = document.createElement("span"); b.className = "meta";
+    b.textContent = (c.base != null ? "#" + c.rank + "・" + fmt(c.base) + "・" : "") + c.max + "kg";
+    li.appendChild(a); li.appendChild(b);
+    li.addEventListener("pointerdown", function (e) { e.preventDefault(); pick(c); });
+    listEl.appendChild(li);
+  });
+}
+function openList() { renderList(); listEl.hidden = false; cropEl.setAttribute("aria-expanded", "true"); }
+function closeList() { listEl.hidden = true; cropEl.setAttribute("aria-expanded", "false"); active = -1; }
+function pick(c) {
+  baseTouched = false; maxTouched = false;
+  state.crop = c;
+  cropEl.value = c.n;
+  $("max").value = c.max;
+  $("base").value = c.base != null ? c.base : "";
+  closeList(); render();
+}
+cropEl.addEventListener("focus", openList);
+cropEl.addEventListener("blur", closeList);
+cropEl.addEventListener("input", function () {
+  active = -1;
+  const exact = CROPS.filter(function (c) { return c.n === cropEl.value.trim(); })[0];
+  if (exact) { pick(exact); openList(); return; }
+  state.crop = null; openList(); render();
+});
+cropEl.addEventListener("keydown", function (e) {
+  if (e.key === "ArrowDown") { e.preventDefault(); if (listEl.hidden) openList(); active = Math.min(active + 1, shown.length - 1); renderList(); scrollActive(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); active = Math.max(active - 1, 0); renderList(); scrollActive(); }
+  else if (e.key === "Enter" && active >= 0 && shown[active]) { e.preventDefault(); pick(shown[active]); }
+  else if (e.key === "Escape") { closeList(); }
+});
+function scrollActive() { const el = listEl.children[active]; if (el && el.scrollIntoView) el.scrollIntoView({ block: "nearest" }); }
+
+/* 型態與天氣按鈕 */
+function chip(label, mul, tier, pressed, onClick) {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "chip"; b.setAttribute("data-t", tier);
+  b.setAttribute("aria-pressed", pressed ? "true" : "false");
+  const t = document.createElement("span"); t.textContent = label;
+  const x = document.createElement("span"); x.className = "x"; x.textContent = "×" + (mul == null ? "?" : mul);
+  b.appendChild(t); b.appendChild(x);
+  if (mul == null) { b.disabled = true; b.title = "倍數還沒收錄"; } else { b.addEventListener("click", onClick); }
+  return b;
+}
+function renderChips() {
+  const f = $("forms"); f.innerHTML = "";
+  FORMS.forEach(function (o, i) {
+    f.appendChild(chip(o.n, o.m, o.t, state.form === i, function () { state.form = i; renderChips(); render(); }));
+  });
+  const box = $("weather"); box.innerHTML = "";
+  WEATHER.forEach(function (w) {
+    box.appendChild(chip(w[0], w[1], w[2], state.weather.has(w[0]), function () {
+      if (state.weather.has(w[0])) state.weather.delete(w[0]); else state.weather.add(w[0]);
+      renderChips(); render();
+    }));
+  });
+  const p = $("prism"); p.innerHTML = "";
+  PRISM.forEach(function (w, i) {
+    p.appendChild(chip(w[0], w[1], w[2], state.prism === i, function () {
+      state.prism = state.prism === i ? null : i; renderChips(); render();
+    }));
+  });
+}
+$("clear").addEventListener("click", function () { state.weather.clear(); state.prism = null; renderChips(); render(); });
+
+/* 結果 */
+function render() {
+  const base = num($("base")), max = num($("max")), weight = num($("weight"));
+  const mults = [];
+  state.weather.forEach(function (n) { if (weatherMul[n] != null) mults.push(weatherMul[n]); });
+  const r = calc({ base: base, max: max, weight: weight, form: state.form, weather: mults, prism: state.prism });
+  const name = cropEl.value.trim() || "自訂果實";
+  const ready = base > 0 && max > 0 && weight > 0;
+
+  $("nobase").hidden = !(state.crop && state.crop.base == null);
+  const pctEl = $("pct");
+  if (max > 0 && weight > 0) {
+    pctEl.textContent = "重量佔比 " + (r.pct * 100).toFixed(1) + "%" + (r.pct > 1 ? "，超過最高重量，請確認數字" : "");
+    pctEl.className = "pct" + (r.pct > 1 ? " over" : "");
+  } else { pctEl.textContent = ""; pctEl.className = "pct"; }
+
+  $("r-name").textContent = name + "・" + FORMS[state.form].n;
+  $("b-name").textContent = name + "・" + FORMS[state.form].n;
+  const priceTxt = ready ? fmt(r.price) : "—";
+  $("r-price").textContent = priceTxt;
+  $("b-price").textContent = priceTxt;
+  $("r-cn").textContent = ready ? fmtCn(r.price) : (base > 0 ? "請輸入重量與最高重量" : "請輸入基礎價值");
+  $("r-base").textContent = base > 0 ? fmt(base) : "—";
+  $("r-pct").textContent = max > 0 && weight > 0 ? (r.pct * 100).toFixed(1) + "%" : "—";
+  $("r-form").textContent = FORMS[state.form].n + " ×" + r.formMul;
+  $("r-sum").textContent = r.sum > 0 ? "×" + trim(r.sum) : "×1（未選天氣）";
+  $("r-formula").textContent = ready
+    ? fmt(base) + " × " + (r.pct * 100).toFixed(1) + "% × " + r.formMul + " × " + trim(r.mult)
+    : "—";
+
+  const picked = [];
+  state.weather.forEach(function (n) { if (weatherMul[n] != null) picked.push(n + " " + weatherMul[n]); });
+  if (state.prism != null) picked.push(PRISM[state.prism][0] + " " + PRISM[state.prism][1]);
+  $("r-picked").textContent = picked.length ? "已選天氣：" + picked.join(" + ") : "";
+  updateImplied();
+}
+["weight", "max", "base"].forEach(function (id) { $(id).addEventListener("input", render); });
+$("base").addEventListener("input", function () { baseTouched = true; });
+$("max").addEventListener("input", function () { maxTouched = true; });
+
+/* 範例：大王菊、金、陶化＋月光 */
+state.weather.add("陶化"); state.weather.add("彩虹");
+pick(CROPS.filter(function (c) { return c.n === "大王菊"; })[0]);
+closeList();
+renderChips();
+render();
+(function () {
+  const miss = WEATHER.filter(function (w) { return w[1] == null; }).map(function (w) { return w[0]; });
+  if (miss.length) { $("unk").hidden = false; $("unk").textContent = "虛線的天氣（" + miss.join("、") + "）倍數還沒收錄，暫時不能選。"; }
+})();
+
+/* ========== 資料庫：校正基礎價值（只有編輯者能寫，其他人唯讀） ========== */
+let dbRef = null, overrides = {}, sampleDocs = [];
+const openGroups = new Set();
+
+function cropId(name) {
+  return "c" + Array.from(name).map(function (ch) { return ch.codePointAt(0).toString(16); }).join("_");
+}
+function msg(t) { $("admin-msg").textContent = t || ""; }
+function parsePrice(t) {
+  const str = String(t || "").replace(/[,，\s_]/g, "");
+  const m = str.match(/^(\d+(?:\.(\d+))?)([kKmMbB萬万億亿兆])?$/);
+  if (!m) return null;
+  const U = { k: 1e3, K: 1e3, m: 1e6, M: 1e6, b: 1e9, B: 1e9, "萬": 1e4, "万": 1e4, "億": 1e8, "亿": 1e8, "兆": 1e12 };
+  const mul = m[3] ? U[m[3]] : 1;
+  const dec = m[2] ? m[2].length : 0;
+  return { value: parseFloat(m[1]) * mul, half: mul * Math.pow(10, -dec) / 2 };
+}
+function weightHalf(str) {
+  const m = String(str).match(/\.(\d+)/);
+  const d = m ? m[1].length : 0;
+  return Math.min(0.005, 0.5 * Math.pow(10, -d));
+}
+function draft() {
+  const c = state.crop;
+  const weight = num($("weight")), max = num($("max"));
+  if (!c) return { ok: false, err: "請先從清單選一種果實。" };
+  if (!(weight > 0 && max > 0)) return { ok: false, err: "請先填重量和最高重量。" };
+  const raw = $("price").value.trim();
+  if (!raw) return { ok: false, err: "", empty: true };
+  const p = parsePrice(raw);
+  if (!p || !(p.value > 0)) return { ok: false, err: "售價請輸入數字，例如 1,354,380,954 或 1.38B。" };
+  const names = [], mults = [];
+  state.weather.forEach(function (n) { if (weatherMul[n] != null) { names.push(n); mults.push(weatherMul[n]); } });
+  const k = calc({ base: 1, max: max, weight: weight, form: state.form, weather: mults, prism: state.prism }).price;
+  const rw = weightHalf($("weight").value) / weight;
+  const lo = (p.value - p.half) / (k * (1 + rw));
+  const hi = (p.value + p.half) / (k * (1 - rw));
+  return { ok: true, cropName: c.n, weight: weight, max: max, form: state.form, weather: names, prism: state.prism,
+    k: k, value: p.value, half: p.half, priceText: raw, lo: lo, hi: hi, mid: (lo + hi) / 2 };
+}
+function updateImplied() {
+  const box = $("admin");
+  if (!box || box.hidden) return;
+  const d = draft(), el = $("implied");
+  if (!d.ok) { el.textContent = d.err || ""; el.className = "pct"; return; }
+  let t = "反推基礎價值約 " + fmt(d.mid) + "（範圍 " + fmt(d.lo) + " 到 " + fmt(d.hi) + "）";
+  const cur = num($("base"));
+  if (cur > 0) t += "，目前用的是 " + fmt(cur);
+  el.textContent = t; el.className = "pct";
+}
+function estimate(list) {
+  let L = -Infinity, H = Infinity, sum = 0, mn = Infinity, mx = -Infinity;
+  list.forEach(function (s) {
+    L = Math.max(L, s.lo); H = Math.min(H, s.hi); sum += (s.lo + s.hi) / 2;
+    mn = Math.min(mn, s.lo); mx = Math.max(mx, s.hi);
+  });
+  if (L <= H) return { est: (L + H) / 2, lo: L, hi: H, conflict: false };
+  return { est: sum / list.length, lo: mn, hi: mx, conflict: true };
+}
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+function applyOverrides() {
+  CROPS.forEach(function (c) {
+    const o = overrides[c.n];
+    c.base = o && o.base > 0 ? o.base : c.base0;
+    c.max = o && o.max > 0 ? o.max : c.max0;
+  });
+  if (state.crop) {
+    if (!baseTouched) $("base").value = state.crop.base != null ? state.crop.base : "";
+    if (!maxTouched) $("max").value = state.crop.max;
+  }
+  if (!listEl.hidden) renderList();
+  render();
+  renderSamples();
+}
+function renderSamples() {
+  const box = $("samples");
+  if (!box || $("admin").hidden) return;
+  box.innerHTML = "";
+  if (!sampleDocs.length) { box.appendChild(el("p", "hint", "還沒有樣本。輸入實際售價後按「儲存樣本」。")); return; }
+  const groups = {};
+  sampleDocs.forEach(function (s) { (groups[s.cropName] = groups[s.cropName] || []).push(s); });
+  const idx = function (n) { for (let i = 0; i < CROPS.length; i++) if (CROPS[i].n === n) return i; return 999; };
+  Object.keys(groups).sort(function (a, b) { return idx(a) - idx(b); }).forEach(function (name) {
+    const list = groups[name], e = estimate(list);
+    const crop = CROPS.filter(function (c) { return c.n === name; })[0];
+    const d = document.createElement("details"); d.className = "grp"; d.open = openGroups.has(name);
+    d.addEventListener("toggle", function () { if (d.open) openGroups.add(name); else openGroups.delete(name); });
+    const sm = document.createElement("summary");
+    sm.appendChild(el("span", "gn", name));
+    sm.appendChild(el("span", "gv", "約 " + fmt(e.est)));
+    sm.appendChild(el("span", "gm", list.length + " 筆樣本"));
+    d.appendChild(sm);
+    const body = el("div", "gbody");
+    const cur = crop && crop.base != null ? crop.base : null;
+    let line = "範圍 " + fmt(e.lo) + " 到 " + fmt(e.hi) + "。";
+    if (cur != null) line += "目前用的是 " + fmt(cur) + "（" + ((e.est / cur - 1) * 100 >= 0 ? "+" : "") + ((e.est / cur - 1) * 100).toFixed(2) + "%）。";
+    else line += "目前沒有基礎價值。";
+    body.appendChild(el("p", "hint", line));
+    if (e.conflict) body.appendChild(el("p", "warnline", "這幾筆樣本互相對不上，可能有重量、型態或天氣倍數填錯。"));
+    const apply = el("button", "btn", "套用 " + fmt(e.est) + " 為基礎價值");
+    apply.type = "button";
+    apply.addEventListener("click", async function () {
+      apply.disabled = true;
+      try {
+        const ov = overrides[name] || {};
+        const doc = { name: name, base: Math.round(e.est), sampleCount: list.length, updatedAt: Date.now() };
+        if (ov.max > 0) doc.max = ov.max;
+        await dbRef.doc("crops/" + cropId(name)).set(doc);
+        msg("已把 " + name + " 的基礎價值設為 " + fmt(e.est) + "。");
+      } catch (err) { msg("儲存失敗（" + ((err && err.code) || "未知錯誤") + "）。"); }
+      apply.disabled = false;
+    });
+    body.appendChild(apply);
+    const wrap = el("div", "tbl"), tb = document.createElement("table");
+    const hr = document.createElement("tr");
+    ["重量", "型態", "天氣", "售價", "反推", ""].forEach(function (h) { hr.appendChild(el("th", null, h)); });
+    tb.appendChild(hr);
+    list.slice().sort(function (a, b) { return a.ts - b.ts; }).forEach(function (sd) {
+      const tr = document.createElement("tr");
+      const wtxt = sd.weather.join("+") + (sd.prism != null ? (sd.weather.length ? "+" : "") + PRISM[sd.prism][0] : "");
+      [String(sd.weight), FORMS[sd.form].n, wtxt || "—", sd.priceText, fmt((sd.lo + sd.hi) / 2)].forEach(function (v, i) {
+        tr.appendChild(el("td", i === 0 || i >= 3 ? "num" : null, v));
+      });
+      const td = document.createElement("td");
+      const del = el("button", null, "刪除"); del.type = "button";
+      del.addEventListener("click", async function () {
+        del.disabled = true;
+        try { await dbRef.doc("samples/" + sd.id).delete(); } catch (err) { msg("刪除失敗（" + ((err && err.code) || "未知錯誤") + "）。"); del.disabled = false; }
+      });
+      td.appendChild(del); tr.appendChild(td); tb.appendChild(tr);
+    });
+    wrap.appendChild(tb); body.appendChild(wrap); d.appendChild(body); box.appendChild(d);
+  });
+}
+
+(async function initDb() {
+  try {
+    if (!window.claude || !window.claude.use) return;
+    const db = await window.claude.use("db");
+    if (!db) return;
+    dbRef = db;
+    db.collection("crops").onSnapshot(function (snap) {
+      const m = {};
+      snap.docs.forEach(function (d) { const v = d.data(); if (v && v.name) m[v.name] = v; });
+      overrides = m;
+      applyOverrides();
+    }, function () {});
+    const user = await window.claude.use("user");
+    const editor = user ? await user.canEdit() : false;
+    if (!editor) return;
+    $("admin").hidden = false;
+    db.collection("samples").orderBy("ts", "desc").limit(1000).onSnapshot(function (snap) {
+      sampleDocs = snap.docs.map(function (d) { const v = d.data(); v.id = d.id; return v; });
+      renderSamples();
+    }, function () {});
+    $("price").addEventListener("input", updateImplied);
+    $("save-sample").addEventListener("click", async function () {
+      const d = draft();
+      if (!d.ok) { msg(d.empty ? "請先輸入遊戲顯示的實際售價。" : d.err); return; }
+      const btn = $("save-sample"); btn.disabled = true;
+      try {
+        await db.collection("samples").add({ cropName: d.cropName, weight: d.weight, max: d.max, form: d.form, weather: d.weather,
+          prism: d.prism, k: d.k, priceText: d.priceText, price: d.value, lo: d.lo, hi: d.hi, ts: Date.now() });
+        msg("已儲存 " + d.cropName + " 的樣本。");
+        $("price").value = ""; updateImplied();
+      } catch (err) { msg("儲存失敗（" + ((err && err.code) || "未知錯誤") + "）。"); }
+      btn.disabled = false;
+    });
+    $("save-base").addEventListener("click", async function () {
+      const c = state.crop, base = num($("base")), max = num($("max"));
+      if (!c) { msg("請先從清單選一種果實。"); return; }
+      if (!(base > 0)) { msg("請先填基礎價值。"); return; }
+      const doc = { name: c.n, base: Math.round(base), updatedAt: Date.now() };
+      if (max > 0 && Math.abs(max - c.max0) > 1e-9) doc.max = max;
+      try { await db.doc("crops/" + cropId(c.n)).set(doc); msg("已儲存 " + c.n + " 的基礎價值。"); }
+      catch (err) { msg("儲存失敗（" + ((err && err.code) || "未知錯誤") + "）。"); }
+    });
+    $("reset-base").addEventListener("click", async function () {
+      const c = state.crop;
+      if (!c) { msg("請先從清單選一種果實。"); return; }
+      try { await db.doc("crops/" + cropId(c.n)).delete(); baseTouched = false; maxTouched = false; msg("已還原 " + c.n + " 的內建數值。"); }
+      catch (err) { msg("還原失敗（" + ((err && err.code) || "未知錯誤") + "）。"); }
+    });
+    renderSamples();
+    updateImplied();
+  } catch (err) { /* 沒有資料庫時，計算器照常使用內建數值 */ }
+})();
+</script>
+
+</body></html>
