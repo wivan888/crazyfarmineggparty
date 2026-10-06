@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>果實價值與天氣洗鍊模擬器</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --card-border: #334155;
+            --accent-color: #8b5cf6;
+            --success-color: #10b981;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --tag-bg: #334155;
+            --tag-active: #6366f1;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 20px 12px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 850px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #f3f4f6;
+            margin-bottom: 6px;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            background: #0f172a;
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: var(--accent-color);
+            color: #fff;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            color: #a7f3d0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="number"],
+        input[type="text"],
+        select {
+            flex: 1;
+            padding: 10px 12px;
+            background: #0f172a;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: var(--accent-color);
+        }
+
+        select {
+            max-width: 110px;
+            cursor: pointer;
+        }
+
+        .search-box {
+            margin-bottom: 10px;
+        }
+
+        .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+            gap: 8px;
+            max-height: 280px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .weather-grid::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .weather-grid::-webkit-scrollbar-thumb {
+            background: var(--card-border);
+            border-radius: 4px;
+        }
+
+        .weather-tag {
+            background: var(--tag-bg);
+            border: 1px solid var(--card-border);
+            padding: 8px 6px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            text-align: center;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.15s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .weather-tag .val {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .weather-tag.selected {
+            background: var(--tag-active);
+            border-color: #818cf8;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .weather-tag.selected .val {
+            color: #e0e7ff;
+        }
+
+        .result-box {
+            background: #090d16;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 16px;
+            border: 1px dashed var(--card-border);
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+
+        .result-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .result-val {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #38bdf8;
+        }
+
+        .result-val.highlight {
+            font-size: 1.4rem;
+            color: var(--success-color);
+        }
+
+        .gain-tag {
+            font-size: 0.85rem;
+            background: #065f46;
+            color: #6ee7b7;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin-left: 8px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <h1>🍓 果實價值與天氣試算器</h1>
+            <p>完整收錄 32 種天氣詞條，支援快速試算與種族值反推</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" id="btn-sim" onclick="switchTab('sim')">⚡ 天氣洗鍊模擬</button>
+            <button class="tab-btn" id="btn-base" onclick="switchTab('base')">🔍 反推作物基礎值</button>
+        </div>
+
+        <!-- 分頁 1: 天氣洗鍊模擬 -->
+        <div id="sim-tab" class="tab-content active">
+            <div class="card">
+                <h2>1️⃣ 輸入果實當前狀態</h2>
+                <div class="form-group">
+                    <label>當前價格</label>
+                    <div class="input-row">
+                        <input type="number" id="currPrice" placeholder="例如: 500" value="500" oninput="calculateSim()">
+                        <select id="currUnit" onchange="calculateSim()">
+                            <option value="1">單位 (元)</option>
+                            <option value="1000" selected>K (千)</option>
+                            <option value="1000000">M (百萬)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>當前擁有的天氣詞條</label>
+                    <input type="text" class="search-box" placeholder="🔍 搜尋當前天氣..."
+                        oninput="filterWeather('currWeatherGrid', this.value)">
+                    <div class="weather-grid" id="currWeatherGrid"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>2️⃣ 選擇預期/目標天氣詞條</h2>
+                <div class="form-group">
+                    <label>勾選洗鍊後希望擁有的天氣</label>
+                    <input type="text" class="search-box" placeholder="🔍 搜尋目標天氣..."
+                        oninput="filterWeather('targetWeatherGrid', this.value)">
+                    <div class="weather-grid" id="targetWeatherGrid"></div>
+                </div>
+
+                <div class="result-box">
+                    <div class="result-row">
+                        <span>無天氣基礎價值：</span>
+                        <span class="result-val" id="baseNoWeatherPrice">-</span>
+                    </div>
+                    <div class="result-row">
+                        <span>預測目標價格：</span>
+                        <div>
+                            <span class="result-val highlight" id="targetPrice">-</span>
+                            <span class="gain-tag" id="gainPercent">+0%</span>
+                        </div>
+                    </div>
+                    <div class="result-row">
+                        <span>預期淨賺加成：</span>
+                        <span class="result-val" style="color:#a7f3d0" id="gainAmount">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分頁 2: 反推作物基礎值 -->
+        <div id="base-tab" class="tab-content">
+            <div class="card">
+                <h2>🔍 輸入作物採收數據</h2>
+                <div class="form-group">
+                    <label>最終價格</label>
+                    <div class="input-row">
+                        <input type="number" id="baseCalcPrice" placeholder="例如: 547.22" value="547.22"
+                            oninput="calculateBase()">
+                        <select id="baseCalcUnit" onchange="calculateBase()">
+                            <option value="1">單位 (元)</option>
+                            <option value="1000" selected>K (千)</option>
+                            <option value="1000000">M (百萬)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-row">
+                    <div class="form-group" style="flex:1">
+                        <label>重量 (kg)</label>
+                        <input type="number" id="baseCalcWeight" placeholder="例如: 1.56" value="1.56" step="0.01"
+                            oninput="calculateBase()">
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <label>品質 (Quality)</label>
+                        <select id="baseCalcQuality" onchange="calculateBase()" style="max-width:100%">
+                            <option value="1">普通 (白) x1.0</option>
+                            <option value="3">銀色 (銀) x3.0</option>
+                            <option value="5">金色 (金) x5.0</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>勾選該作物的天氣詞條</label>
+                    <input type="text" class="search-box" placeholder="🔍 搜尋天氣..."
+                        oninput="filterWeather('baseWeatherGrid', this.value)">
+                    <div class="weather-grid" id="baseWeatherGrid"></div>
+                </div>
+
+                <div class="result-box">
+                    <div class="result-row">
+                        <span>反推計算基礎值：</span>
+                        <span class="result-val highlight" id="calculatedBaseValue">-</span>
+                    </div>
+                    <div class="result-row">
+                        <span>估計官方整數種族值：</span>
+                        <span class="result-val" style="color:#f43f5e" id="suggestedBaseValue">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 完整收錄 220213.png 中的 32 種天氣詞條 (依數值由小到大排序)
+        const weatherDict = [
+            { name: '潮濕', val: 1.0 },
+            { name: '顫慄', val: 1.0 },
+            { name: '異彩', val: 1.5 },
+            { name: '覆雪', val: 2.0 },
+            { name: '迷霧', val: 2.0 },
+            { name: '生機', val: 2.0 },
+            { name: '結霜', val: 2.0 },
+            { name: '灼熱', val: 2.0 },
+            { name: '沙塵', val: 2.0 },
+            { name: '落雷', val: 3.0 },
+            { name: '幻彩', val: 3.0 },
+            { name: '冰凍', val: 4.0 },
+            { name: '隕石', val: 4.0 }, // 可依實測需求在代碼改為 3.0
+            { name: '陶化', val: 4.0 },
+            { name: '琥珀', val: 4.0 }, // 可依實測需求在代碼改為 4.5
+            { name: '彩虹', val: 5.0 },
+            { name: '螢光', val: 5.0 },
+            { name: '血月', val: 5.0 },
+            { name: '極光', val: 5.0 },
+            { name: '幽魂', val: 5.0 },
+            { name: '驚魂夜', val: 5.0 },
+            { name: '哈基米', val: 5.0 },
+            { name: '彩塵', val: 5.0 },
+            { name: '太陽耀斑', val: 5.0 },
+            { name: '暗霧', val: 6.0 },
+            { name: '瓷化', val: 8.0 },
+            { name: '星環', val: 10.0 },
+            { name: '亮晶晶', val: 10.0 },
+            { name: '日蝕', val: 10.0 },
+            { name: '流火', val: 15.0 },
+            { name: '橙鑽', val: 18.0 },
+            { name: '霓虹', val: 18.0 }
+        ];
+
+        let currSelectedWeather = new Set();
+        let targetSelectedWeather = new Set();
+        let baseSelectedWeather = new Set();
+
+        function initWeatherGrids() {
+            renderGrid('currWeatherGrid', currSelectedWeather, calculateSim);
+            renderGrid('targetWeatherGrid', targetSelectedWeather, calculateSim);
+            renderGrid('baseWeatherGrid', baseSelectedWeather, calculateBase);
+        }
+
+        function renderGrid(containerId, stateSet, callback) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            weatherDict.forEach(item => {
+                const tag = document.createElement('div');
+                tag.className = 'weather-tag' + (stateSet.has(item.name) ? ' selected' : '');
+                tag.setAttribute('data-name', item.name);
+                tag.innerHTML = `<span>${item.name}</span><span class="val">+${item.val}</span>`;
+                tag.onclick = () => {
+                    if (stateSet.has(item.name)) stateSet.delete(item.name);
+                    else stateSet.add(item.name);
+                    tag.classList.toggle('selected');
+                    callback();
+                };
+                container.appendChild(tag);
+            });
+        }
+
+        function filterWeather(gridId, keyword) {
+            const grid = document.getElementById(gridId);
+            const tags = grid.querySelectorAll('.weather-tag');
+            const query = keyword.trim().toLowerCase();
+            tags.forEach(tag => {
+                const name = tag.getAttribute('data-name');
+                if (name.includes(query)) tag.style.display = 'flex';
+                else tag.style.display = 'none';
+            });
+        }
+
+        function formatPrice(val) {
+            if (val >= 1000000000) return (val / 1000000000).toFixed(2) + ' B';
+            if (val >= 1000000) return (val / 1000000).toFixed(2) + ' M';
+            if (val >= 1000) return (val / 1000).toFixed(2) + ' K';
+            return val.toFixed(2);
+        }
+
+        function getWeatherSum(stateSet) {
+            let sum = 0;
+            weatherDict.forEach(item => {
+                if (stateSet.has(item.name)) sum += item.val;
+            });
+            return sum;
+        }
+
+        function calculateSim() {
+            const rawPrice = parseFloat(document.getElementById('currPrice').value) || 0;
+            const unit = parseFloat(document.getElementById('currUnit').value) || 1;
+            const currPrice = rawPrice * unit;
+
+            const currWeatherSum = getWeatherSum(currSelectedWeather);
+            const targetWeatherSum = getWeatherSum(targetSelectedWeather);
+
+            const baseNoWeatherPrice = currPrice / (1.0 + currWeatherSum);
+            const targetPrice = baseNoWeatherPrice * (1.0 + targetWeatherSum);
+            const gainAmount = targetPrice - currPrice;
+            const gainPct = currPrice > 0 ? (gainAmount / currPrice) * 100 : 0;
+
+            document.getElementById('baseNoWeatherPrice').innerText = formatPrice(baseNoWeatherPrice);
+            document.getElementById('targetPrice').innerText = formatPrice(targetPrice);
+            document.getElementById('gainAmount').innerText = (gainAmount >= 0 ? '+' : '') + formatPrice(gainAmount);
+
+            const pctTag = document.getElementById('gainPercent');
+            pctTag.innerText = (gainPct >= 0 ? '+' : '') + gainPct.toFixed(1) + '%';
+            pctTag.style.background = gainPct >= 0 ? '#065f46' : '#991b1b';
+            pctTag.style.color = gainPct >= 0 ? '#6ee7b7' : '#fca5a5';
+        }
+
+        function calculateBase() {
+            const rawPrice = parseFloat(document.getElementById('baseCalcPrice').value) || 0;
+            const unit = parseFloat(document.getElementById('baseCalcUnit').value) || 1;
+            const price = rawPrice * unit;
+
+            const weight = parseFloat(document.getElementById('baseCalcWeight').value) || 1;
+            const quality = parseFloat(document.getElementById('baseCalcQuality').value) || 1;
+            const weatherSum = getWeatherSum(baseSelectedWeather);
+
+            const weightFactor = Math.pow(weight, 1.5);
+            const weatherFactor = 1.0 + weatherSum;
+
+            if (weightFactor === 0 || weatherFactor === 0) return;
+
+            const calculatedBase = price / (weightFactor * quality * weatherFactor);
+            const suggestedBase = Math.round(calculatedBase / 500) * 500;
+
+            document.getElementById('calculatedBaseValue').innerText = calculatedBase.toFixed(2);
+            document.getElementById('suggestedBaseValue').innerText = suggestedBase.toLocaleString() + ' (約)';
+        }
+
+        function switchTab(tabName) {
+            document.getElementById('btn-sim').classList.remove('active');
+            document.getElementById('btn-base').classList.remove('active');
+            document.getElementById('sim-tab').classList.remove('active');
+            document.getElementById('base-tab').classList.remove('active');
+
+            if (tabName === 'sim') {
+                document.getElementById('btn-sim').classList.add('active');
+                document.getElementById('sim-tab').classList.add('active');
+            } else {
+                document.getElementById('btn-base').classList.add('active');
+                document.getElementById('base-tab').classList.add('active');
+            }
+        }
+
+        window.onload = () => {
+            initWeatherGrids();
+            calculateSim();
+            calculateBase();
+        };
+    </script>
+
+</body>
+
+</html>
