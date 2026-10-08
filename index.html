@@ -1,524 +1,534 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
+<title>瘋狂農場果實計算器</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<style>
+/* Layout: 左欄依序填果實 → 現在的狀態 → 想預估的狀態；右欄是固定的結果面板，手機版改成底部價格列 */
+:root {
+  --bg: #edf2ee;
+  --surface: #fbfdfb;
+  --ink: #15251b;
+  --muted: #5a6b5f;
+  --line: #d3ded5;
+  --accent: #1d6b44;
+  --accent-ink: #ffffff;
+  --coin: #a86f00;
+  --warn: #b4501a;
+  --t-gray: #6b7280; --t-gray-ink: #ffffff;
+  --t-green: #2b7d39; --t-green-ink: #ffffff;
+  --t-blue: #2f6fd6; --t-blue-ink: #ffffff;
+  --t-purple: #7b3fd0; --t-purple-ink: #ffffff;
+  --t-orange: #e8891c; --t-orange-ink: #1a1205;
+  --g-rainbow: linear-gradient(110deg, #e53935, #fdd835 35%, #43a047 62%, #1e40ff);
+  --g-star: linear-gradient(115deg, #d9ccff, #8a6bff 35%, #f3eeff 55%, #7a55f5 80%, #c9b8ff);
+  --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-num: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1812; --surface: #15231b; --ink: #e5efe7; --muted: #92a79a; --line: #27382d;
+    --accent: #5fcf92; --accent-ink: #0a1a10; --coin: #f2b73c; --warn: #f09a62;
+    --t-gray: #9aa3b2; --t-gray-ink: #10161d;
+    --t-green: #5fcf7a; --t-green-ink: #08200f;
+    --t-blue: #6aa3ff; --t-blue-ink: #07162e;
+    --t-purple: #b18cff; --t-purple-ink: #1a0b36;
+    --t-orange: #f5a847; --t-orange-ink: #1a1205;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1812; --surface: #15231b; --ink: #e5efe7; --muted: #92a79a; --line: #27382d;
+  --accent: #5fcf92; --accent-ink: #0a1a10; --coin: #f2b73c; --warn: #f09a62;
+  --t-gray: #9aa3b2; --t-gray-ink: #10161d;
+  --t-green: #5fcf7a; --t-green-ink: #08200f;
+  --t-blue: #6aa3ff; --t-blue-ink: #07162e;
+  --t-purple: #b18cff; --t-purple-ink: #1a0b36;
+  --t-orange: #f5a847; --t-orange-ink: #1a1205;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6; padding-inline: 16px; padding-block: 28px 40px; }
+.wrap { max-width: 1040px; margin: 0 auto; }
+h1 { font-size: clamp(1.6rem, 4vw + 0.6rem, 2.3rem); font-weight: 900; letter-spacing: 0.02em; line-height: 1.2; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 6px 0 0; max-width: 62ch; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 40px; margin-top: 28px; align-items: start; }
+.col-main { display: flex; flex-direction: column; min-width: 0; }
+.sec { padding-block: 22px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.sec:first-child { border-top: 0; padding-top: 0; }
+.sec h2 { margin: 0; font-size: 1.05rem; font-weight: 700; display: flex; align-items: baseline; gap: 10px; }
+.step { font-family: var(--font-num); font-size: 0.78rem; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 0 6px; line-height: 1.5; }
+.hint { color: var(--muted); font-size: 0.85rem; margin: 0; max-width: 68ch; }
+.sec h3 { margin: 0; font-size: 0.78rem; font-weight: 500; color: var(--muted); letter-spacing: 0.08em; }
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>果實價值與天氣洗鍊模擬器</title>
-    <style>
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --card-border: #334155;
-            --accent-color: #8b5cf6;
-            --success-color: #10b981;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --tag-bg: #334155;
-            --tag-active: #6366f1;
-        }
+.f { display: flex; flex-direction: column; gap: 6px; font-size: 0.82rem; color: var(--muted); min-width: 0; }
+input[type="text"], input[type="number"] {
+  font: inherit; font-size: 1rem; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; width: 100%; min-width: 0;
+}
+input[type="number"], #val { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stack { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pct { font-family: var(--font-num); font-size: 0.8rem; color: var(--accent); min-height: 1.2em; }
+.pct.over { color: var(--warn); }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
+.combo { position: relative; }
+.combo ul { position: absolute; z-index: 5; inset-inline: 0; top: calc(100% + 4px); margin: 0; padding: 4px; list-style: none; max-height: 280px; overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.18); }
+.combo li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+.combo li .meta { font-family: var(--font-num); font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+.combo li[aria-selected="true"], .combo li:hover { background: var(--bg); }
+.combo .empty { color: var(--muted); cursor: default; }
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            padding: 20px 12px;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-        }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { --c: var(--line); --ci: var(--ink); font: inherit; font-size: 0.92rem; color: var(--ink); background: color-mix(in srgb, var(--c) 16%, var(--surface)); border: 1.5px solid var(--c); border-radius: 10px; padding: 7px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.chip .x { font-family: var(--font-num); font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip[data-t="gray"] { --c: var(--t-gray); --ci: var(--t-gray-ink); }
+.chip[data-t="green"] { --c: var(--t-green); --ci: var(--t-green-ink); }
+.chip[data-t="blue"] { --c: var(--t-blue); --ci: var(--t-blue-ink); }
+.chip[data-t="purple"] { --c: var(--t-purple); --ci: var(--t-purple-ink); }
+.chip[data-t="orange"] { --c: var(--t-orange); --ci: var(--t-orange-ink); }
+.chip[data-t="rainbow"], .chip[data-t="star"] { border-color: transparent; background: linear-gradient(color-mix(in srgb, var(--surface) 70%, transparent), color-mix(in srgb, var(--surface) 70%, transparent)), var(--grad); }
+.chip[data-t="rainbow"] { --grad: var(--g-rainbow); }
+.chip[data-t="star"] { --grad: var(--g-star); }
+.chip:hover { filter: brightness(1.08); }
+.chip[aria-pressed="true"] { background: var(--c); color: var(--ci); box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.chip[aria-pressed="true"] .x { color: inherit; opacity: 0.85; }
+.chip[aria-pressed="true"]::before { content: "\2713"; font-weight: 700; }
+.chip[data-t="rainbow"][aria-pressed="true"], .chip[data-t="star"][aria-pressed="true"] { background: var(--grad); color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+.chip[data-t="star"][aria-pressed="true"] { background: linear-gradient(115deg, #4b32b8, #8a6bff 45%, #5a3ed0 75%, #36229a); }
+.forms .chip { padding: 9px 14px; }
+.links { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.linkbtn { font: inherit; font-size: 0.82rem; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
 
-        .container {
-            width: 100%;
-            max-width: 850px;
-        }
+.result { position: sticky; top: calc(16px + env(safe-area-inset-top, 0px)); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.result .cap { font-size: 0.8rem; color: var(--muted); letter-spacing: 0.08em; }
+.result .name { font-weight: 700; font-size: 1.1rem; overflow-wrap: anywhere; }
+.price { font-family: var(--font-num); font-weight: 700; font-size: clamp(1.7rem, 5vw, 2.1rem); line-height: 1.15; color: var(--coin); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.price-cn { font-size: 0.95rem; color: var(--muted); min-height: 1.4em; }
+dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 0.9rem; border-top: 1px solid var(--line); padding-top: 14px; }
+dt { color: var(--muted); }
+dd { margin: 0; text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.formula { font-family: var(--font-num); font-size: 0.8rem; color: var(--muted); background: var(--bg); border-radius: 8px; padding: 10px 12px; overflow-wrap: anywhere; }
+.picked { font-size: 0.82rem; color: var(--muted); margin: 0; overflow-wrap: anywhere; }
+.note { color: var(--muted); font-size: 0.82rem; margin-top: 8px; border-top: 1px solid var(--line); padding-top: 16px; }
+.note p { margin: 0 0 6px; max-width: 72ch; }
 
-        header {
-            text-align: center;
-            margin-bottom: 24px;
-        }
+.bar { display: none; }
+@media (max-width: 860px) {
+  .grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .result { position: static; }
+  body { padding-bottom: 96px; }
+  .bar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--surface); border-top: 1px solid var(--line); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); align-items: baseline; justify-content: space-between; gap: 12px; }
+  .bar .n { font-size: 0.85rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .bar .p { font-family: var(--font-num); font-weight: 700; font-size: 1.15rem; color: var(--coin); white-space: nowrap; font-variant-numeric: tabular-nums; }
+}
+@media (max-width: 480px) { .row2 { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.range { font-family: var(--font-num); font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; min-height: 1.4em; }
+.range.over { color: var(--warn); }
+.chip:disabled, .chip:disabled:hover { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; box-shadow: none; }
+</style>
 
-        header h1 {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #f3f4f6;
-            margin-bottom: 6px;
-        }
+<main class="wrap">
+  <header>
+    <h1>瘋狂農場果實計算器</h1>
+    <p class="sub">by 一次玩8隻帳號的瘋子</p>
+    <p class="sub">現在的金額可以從果實管理 -> 多選 -> 單選你要查詢的果實就會顯示金額了~</p>    
+  </header>
 
-        header p {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-        }
-
-        .tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 20px;
-            background: #0f172a;
-            padding: 4px;
-            border-radius: 12px;
-            border: 1px solid var(--card-border);
-        }
-
-        .tab-btn {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            background: transparent;
-            color: var(--text-muted);
-            font-weight: 600;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.2s;
-        }
-
-        .tab-btn.active {
-            background: var(--accent-color);
-            color: #fff;
-        }
-
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-        }
-
-        .card h2 {
-            font-size: 1.2rem;
-            margin-bottom: 16px;
-            color: #a7f3d0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        label {
-            display: block;
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            margin-bottom: 8px;
-            font-weight: 500;
-        }
-
-        .input-row {
-            display: flex;
-            gap: 10px;
-        }
-
-        input[type="number"],
-        input[type="text"],
-        select {
-            flex: 1;
-            padding: 10px 12px;
-            background: #0f172a;
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            color: #fff;
-            font-size: 0.95rem;
-            outline: none;
-        }
-
-        input:focus,
-        select:focus {
-            border-color: var(--accent-color);
-        }
-
-        select {
-            max-width: 110px;
-            cursor: pointer;
-        }
-
-        .search-box {
-            margin-bottom: 10px;
-        }
-
-        .weather-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
-            gap: 8px;
-            max-height: 280px;
-            overflow-y: auto;
-            padding-right: 4px;
-        }
-
-        .weather-grid::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .weather-grid::-webkit-scrollbar-thumb {
-            background: var(--card-border);
-            border-radius: 4px;
-        }
-
-        .weather-tag {
-            background: var(--tag-bg);
-            border: 1px solid var(--card-border);
-            padding: 8px 6px;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            text-align: center;
-            cursor: pointer;
-            user-select: none;
-            transition: all 0.15s;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .weather-tag .val {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            margin-top: 2px;
-        }
-
-        .weather-tag.selected {
-            background: var(--tag-active);
-            border-color: #818cf8;
-            color: #fff;
-            font-weight: 600;
-        }
-
-        .weather-tag.selected .val {
-            color: #e0e7ff;
-        }
-
-        .result-box {
-            background: #090d16;
-            border-radius: 12px;
-            padding: 16px;
-            margin-top: 16px;
-            border: 1px dashed var(--card-border);
-        }
-
-        .result-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            font-size: 0.95rem;
-        }
-
-        .result-row:last-child {
-            margin-bottom: 0;
-        }
-
-        .result-val {
-            font-size: 1.15rem;
-            font-weight: 700;
-            color: #38bdf8;
-        }
-
-        .result-val.highlight {
-            font-size: 1.4rem;
-            color: var(--success-color);
-        }
-
-        .gain-tag {
-            font-size: 0.85rem;
-            background: #065f46;
-            color: #6ee7b7;
-            padding: 2px 8px;
-            border-radius: 12px;
-            margin-left: 8px;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-    </style>
-</head>
-
-<body>
-
-    <div class="container">
-        <header>
-            <h1>🍓 果實價值與天氣試算器</h1>
-            <p>完整收錄 32 種天氣詞條，支援快速試算與種族值反推</p>
-        </header>
-
-        <div class="tabs">
-            <button class="tab-btn active" id="btn-sim" onclick="switchTab('sim')">⚡ 天氣洗鍊模擬</button>
-            <button class="tab-btn" id="btn-base" onclick="switchTab('base')">🔍 反推作物基礎值</button>
-        </div>
-
-        <!-- 分頁 1: 天氣洗鍊模擬 -->
-        <div id="sim-tab" class="tab-content active">
-            <div class="card">
-                <h2>1️⃣ 輸入果實當前狀態</h2>
-                <div class="form-group">
-                    <label>當前價格</label>
-                    <div class="input-row">
-                        <input type="number" id="currPrice" placeholder="例如: 500" value="500" oninput="calculateSim()">
-                        <select id="currUnit" onchange="calculateSim()">
-                            <option value="1">單位 (元)</option>
-                            <option value="1000" selected>K (千)</option>
-                            <option value="1000000">M (百萬)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>當前擁有的天氣詞條</label>
-                    <input type="text" class="search-box" placeholder="🔍 搜尋當前天氣..."
-                        oninput="filterWeather('currWeatherGrid', this.value)">
-                    <div class="weather-grid" id="currWeatherGrid"></div>
-                </div>
+  <div class="grid">
+    <div class="col-main">
+      <section class="sec">
+        <h2><span class="step">1</span>果實</h2>
+        <div class="row2">
+          <div class="stack">
+            <div class="f">
+              <label for="crop">果實名稱</label>
+              <div class="combo">
+                <input type="text" id="crop" role="combobox" aria-expanded="false" aria-controls="croplist" aria-autocomplete="list" autocomplete="off" placeholder="輸入或點選果實，例如：大王菊">
+                <ul id="croplist" role="listbox" hidden></ul>
+              </div>
             </div>
-
-            <div class="card">
-                <h2>2️⃣ 選擇預期/目標天氣詞條</h2>
-                <div class="form-group">
-                    <label>勾選洗鍊後希望擁有的天氣</label>
-                    <input type="text" class="search-box" placeholder="🔍 搜尋目標天氣..."
-                        oninput="filterWeather('targetWeatherGrid', this.value)">
-                    <div class="weather-grid" id="targetWeatherGrid"></div>
-                </div>
-
-                <div class="result-box">
-                    <div class="result-row">
-                        <span>無天氣基礎價值：</span>
-                        <span class="result-val" id="baseNoWeatherPrice">-</span>
-                    </div>
-                    <div class="result-row">
-                        <span>預測目標價格：</span>
-                        <div>
-                            <span class="result-val highlight" id="targetPrice">-</span>
-                            <span class="gain-tag" id="gainPercent">+0%</span>
-                        </div>
-                    </div>
-                    <div class="result-row">
-                        <span>預期淨賺加成：</span>
-                        <span class="result-val" style="color:#a7f3d0" id="gainAmount">-</span>
-                    </div>
-                </div>
+            <div class="f">
+              <label for="max">最高重量 (kg)</label>
+              <input type="number" id="max" inputmode="decimal" min="0" step="0.1">
             </div>
+          </div>
+          <div class="f">
+            <span class="lbl">種子品質</span>
+            <div class="chips" id="quality" role="group" aria-label="種子品質"></div>
+          </div>
         </div>
+      </section>
 
-        <!-- 分頁 2: 反推作物基礎值 -->
-        <div id="base-tab" class="tab-content">
-            <div class="card">
-                <h2>🔍 輸入作物採收數據</h2>
-                <div class="form-group">
-                    <label>最終價格</label>
-                    <div class="input-row">
-                        <input type="number" id="baseCalcPrice" placeholder="例如: 547.22" value="547.22"
-                            oninput="calculateBase()">
-                        <select id="baseCalcUnit" onchange="calculateBase()">
-                            <option value="1">單位 (元)</option>
-                            <option value="1000" selected>K (千)</option>
-                            <option value="1000000">M (百萬)</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="input-row">
-                    <div class="form-group" style="flex:1">
-                        <label>重量 (kg)</label>
-                        <input type="number" id="baseCalcWeight" placeholder="例如: 1.56" value="1.56" step="0.01"
-                            oninput="calculateBase()">
-                    </div>
-                    <div class="form-group" style="flex:1">
-                        <label>品質 (Quality)</label>
-                        <select id="baseCalcQuality" onchange="calculateBase()" style="max-width:100%">
-                            <option value="1">普通 (白) x1.0</option>
-                            <option value="3">銀色 (銀) x3.0</option>
-                            <option value="5">金色 (金) x5.0</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>勾選該作物的天氣詞條</label>
-                    <input type="text" class="search-box" placeholder="🔍 搜尋天氣..."
-                        oninput="filterWeather('baseWeatherGrid', this.value)">
-                    <div class="weather-grid" id="baseWeatherGrid"></div>
-                </div>
-
-                <div class="result-box">
-                    <div class="result-row">
-                        <span>反推計算基礎值：</span>
-                        <span class="result-val highlight" id="calculatedBaseValue">-</span>
-                    </div>
-                    <div class="result-row">
-                        <span>估計官方整數種族值：</span>
-                        <span class="result-val" style="color:#f43f5e" id="suggestedBaseValue">-</span>
-                    </div>
-                </div>
-            </div>
+      <section class="sec">
+        <h2><span class="step">2</span>現在的果實</h2>
+        <div class="row2">
+          <div class="f">
+            <label for="w-now">現在重量 (kg)</label>
+            <input type="number" id="w-now" inputmode="decimal" min="0" step="0.01">
+          </div>
+          <div class="f">
+            <label for="val">遊戲顯示的現在價值</label>
+            <input type="text" id="val" inputmode="decimal" autocomplete="off" placeholder="例如 1.35B 或 35.90M">
+          </div>
         </div>
+        <div class="pct" id="pct-now" aria-live="polite"></div>
+        <h3>現在已有的天氣（可多選）</h3>
+        <div class="chips" id="weather-now" role="group" aria-label="現在已有的天氣"></div>
+        <h3>異彩 / 幻彩（只能擇一）</h3>
+        <div class="chips" id="prism-now" role="group" aria-label="現在的異彩或幻彩"></div>
+        <div class="links"><button class="linkbtn" id="clear-now" type="button">清除現有天氣</button></div>
+      </section>
+
+      <section class="sec">
+        <h2><span class="step">3</span>之後的天氣</h2>
+        <h3>之後的天氣（可多選）</h3>
+        <div class="chips" id="weather-add" role="group" aria-label="之後的天氣"></div>
+        <h3>異彩 / 幻彩（只能擇一）</h3>
+        <div class="chips" id="prism-add" role="group" aria-label="之後的異彩或幻彩"></div>
+        <div class="links"><button class="linkbtn" id="clear-add" type="button">還原成和現在相同</button></div>
+      </section>
+
     </div>
 
-    <script>
-        // 完整收錄 220213.png 中的 32 種天氣詞條 (依數值由小到大排序)
-        const weatherDict = [
-            { name: '潮濕', val: 1.0 },
-            { name: '顫慄', val: 1.0 },
-            { name: '異彩', val: 1.5 },
-            { name: '覆雪', val: 2.0 },
-            { name: '迷霧', val: 2.0 },
-            { name: '生機', val: 2.0 },
-            { name: '結霜', val: 2.0 },
-            { name: '灼熱', val: 2.0 },
-            { name: '沙塵', val: 2.0 },
-            { name: '落雷', val: 3.0 },
-            { name: '幻彩', val: 3.0 },
-            { name: '冰凍', val: 4.0 },
-            { name: '隕石', val: 3.0 }, // 可依實測需求在代碼改為 3.0
-            { name: '陶化', val: 4.0 },
-            { name: '琥珀', val: 4.5 }, // 可依實測需求在代碼改為 4.5
-            { name: '彩虹', val: 5.0 },
-            { name: '螢光', val: 5.0 },
-            { name: '血月', val: 5.0 },
-            { name: '極光', val: 5.0 },
-            { name: '幽魂', val: 5.0 },
-            { name: '驚魂夜', val: 5.0 },
-            { name: '哈基米', val: 5.0 },
-            { name: '彩塵', val: 5.0 },
-            { name: '太陽耀斑', val: 5.0 },
-            { name: '暗霧', val: 6.0 },
-            { name: '瓷化', val: 8.0 },
-            { name: '星環', val: 10.0 },
-            { name: '亮晶晶', val: 10.0 },
-            { name: '日蝕', val: 10.0 },
-            { name: '流火', val: 15.0 },
-            { name: '橙鑽', val: 18.0 },
-            { name: '霓虹', val: 18.0 }
-        ];
+    <aside class="result" aria-label="預估結果">
+      <div class="cap">預估價值</div>
+      <div class="name" id="r-name">—</div>
+      <div class="price" id="r-price">—</div>
+      <div class="price-cn" id="r-cn"></div>
+      <div class="range" id="r-range"></div>
+      <dl>
+        <dt>現在價值</dt><dd id="r-now">—</dd>
+        <dt>價值變化</dt><dd id="r-ratio">—</dd>
+        <dt>天氣倍數</dt><dd id="r-sum">—</dd>
+        <dt>被取代的天氣</dt><dd id="r-merge">—</dd>
+      </dl>
+      <div class="formula" id="r-formula">—</div>
+      <p class="picked" id="r-picked"></p>
+    </aside>
+  </div>
+</main>
 
-        let currSelectedWeather = new Set();
-        let targetSelectedWeather = new Set();
-        let baseSelectedWeather = new Set();
+<div class="bar" aria-hidden="true"><span class="n" id="b-name">—</span><span class="p" id="b-price">—</span></div>
 
-        function initWeatherGrids() {
-            renderGrid('currWeatherGrid', currSelectedWeather, calculateSim);
-            renderGrid('targetWeatherGrid', targetSelectedWeather, calculateSim);
-            renderGrid('baseWeatherGrid', baseSelectedWeather, calculateBase);
-        }
+<script>
+/* ========== 資料表：要改數值就改這裡 ========== */
+const CROPS = [
+  ["跳舞的柿黛拉", 45.2], ["聽歌的柿黛拉", null], ["火龍狗", 34], ["秋水仙", 34], ["月蟾蜍", 34], ["仙人掌象", 34],
+  ["蘆薈", 10.2], ["驚奇菇", 10.2], ["彼岸花", 10.2], ["鈴蘭幽幽", 23.8], ["月兔", 23.8],
+  ["星空玫瑰", 10.2], ["魔鬼朝天椒", 10.2], ["幻月花", 23.8], ["紅包樹", 5.1], ["大王菊", 10.2],
+  ["蟠桃", 20.4], ["葡萄", 10.2], ["月影梅", 3.4], ["馬蹄蓮", 17], ["松果", 17], ["向日葵", 51],
+  ["馬鈴薯", 11.9], ["月光草", 3.4], ["番茄", 10.2], ["灰壤豆", 3.4], ["波斯菊", 34], ["香菇", 3.4],
+  ["月燈草", 5.1], ["黃瓜", 13.6], ["月番茄", 10.2], ["竹子", 136], ["大豆", 3.4], ["西瓜", 170],
+  ["白菜", 10.2], ["月環樹", 20.4], ["玉米", 40.8], ["橘子", 13.6], ["藍莓", 40.8], ["梨", 13.6],
+  ["牽牛花", 5.1], ["棉花", 5.2], ["銀輝苔", 5.1], ["花生", 5.1], ["蘋果", 37.4], ["南瓜", 204],
+  ["柿子", 37.6], ["石榴", 20.4], ["香蕉", 10.2], ["月莓", 8.5], ["龍眼", 8.5], ["櫻桃", 10.5],
+  ["椰子", 40.8], ["星葉菜", 10.2], ["奇異果", 13.6], ["草莓", 8.5], ["榴蓮", 61.2], ["柚子", 61.2],
+  ["荔枝", 23.8], ["月核樹", 17], ["液光藤", 20.4], ["菠菜", 20.4]
+].map(function (c) { return { n: c[0], max: c[1] }; });
+// [名稱, 倍數, 顏色等級]
+const WEATHER = [
+  ["潮濕", 1, "gray"], ["顫慄", 1, "gray"], ["覆雪", 2, "gray"], ["迷霧", 2, "gray"], ["生機", 2, "gray"],
+  ["結霜", 2, "gray"], ["灼熱", 2, "gray"], ["沙塵", 2, "gray"],
+  ["落雷", 3, "green"], ["冰凍", 4, "green"], ["隕石", 4, "green"], ["陶化", 4, "green"],
+  ["彩虹", 5, "blue"], ["螢光", 5, "blue"], ["血月", 5, "blue"], ["極光", 5, "blue"], ["幽魂", 5, "blue"],
+  ["驚魂夜", 5, "blue"], ["哈基米", 5, "blue"], ["彩塵", 5, "blue"],
+  ["太陽耀斑", 5, "blue"], ["暗霧", 6, "blue"], ["琥珀", 4, "blue"],
+  ["星環", 10, "purple"], ["亮晶晶", 10, "purple"], ["瓷化", 8, "purple"], ["日蝕", 10, "purple"],
+  ["流火", 15, "orange"], ["橙鑽", 18, "orange"], ["霓虹", 18, "rainbow"]
+];
+const PRISM = [["異彩", 1.5, "blue"], ["幻彩", 3, "orange"]];
+// 選了左邊的天氣，右邊列的天氣會變暗，不能同時選，算價值時也不重複計算
+const DIMS = {
+  "橙鑽": ["琥珀", "生機", "亮晶晶"],
+  "冰凍": ["結霜"],
+  "陶化": ["沙塵"],
+  "瓷化": ["陶化", "沙塵", "灼熱", "流火"],
+  "流火": ["瓷化", "太陽耀斑", "灼熱"],
+  "琥珀": ["生機"]
+};
+// 種子品質：[名稱, 顏色, 果實名單]，至臻 = 其他沒列在上面的果實
+const QUALITY = [
+  ["普通", "gray", ["馬鈴薯", "番茄", "波斯菊", "香菇", "月光草", "灰壤豆"]],
+  ["良好", "green", [ "黃瓜", "竹子", "大豆", "月番茄", "月燈草"]],
+  ["優秀", "blue", ["西瓜", "玉米", "牽牛花", "梨", "白菜", "橘子", "棉花", "銀輝苔", "月環樹", "藍莓", "花生"]],
+  ["珍稀", "purple", ["蘋果", "香蕉", "椰子", "南瓜", "石榴", "櫻桃", "月莓", "星葉菜", "柿子", "龍眼"]],
+  ["史詩", "orange", ["奇異果", "草莓", "榴蓮", "荔枝", "液光藤", "月核樹", "菠菜", "柚子", "聽歌的柿黛拉"]],
+  ["至臻", "rainbow", null]
+];
+const weatherMul = {};
+WEATHER.forEach(function (w) { weatherMul[w[0]] = w[1]; });
 
-        function renderGrid(containerId, stateSet, callback) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = '';
-            weatherDict.forEach(item => {
-                const tag = document.createElement('div');
-                tag.className = 'weather-tag' + (stateSet.has(item.name) ? ' selected' : '');
-                tag.setAttribute('data-name', item.name);
-                tag.innerHTML = `<span>${item.name}</span><span class="val">+${item.val}</span>`;
-                tag.onclick = () => {
-                    if (stateSet.has(item.name)) stateSet.delete(item.name);
-                    else stateSet.add(item.name);
-                    tag.classList.toggle('selected');
-                    callback();
-                };
-                container.appendChild(tag);
-            });
-        }
+/* ========== 計算 ========== */
+// <calc>
+function weatherSum(names, prism) {
+  let sum = 0;
+  names.forEach(function (n) { if (weatherMul[n] != null) sum += weatherMul[n]; });
+  if (prism != null) sum += PRISM[prism][1];
+  return sum;
+}
+function consumedSet(names) {
+  const out = new Set();
+  names.forEach(function (n) { (DIMS[n] || []).forEach(function (p) { out.add(p); }); });
+  return out;
+}
+// 加入一個天氣：如果已被目前選的天氣取代就不加，加了會把被它取代的拿掉
+function setWeather(set, name, on) {
+  if (!on) { set.delete(name); return; }
+  if (consumedSet(Array.from(set)).has(name)) return;
+  set.add(name);
+  (DIMS[name] || []).forEach(function (p) { set.delete(p); });
+}
+// 現在有、之後被別的天氣取代掉的
+function resolveMerges(nowNames, afterNames) {
+  const merges = [];
+  afterNames.forEach(function (n) {
+    const parts = (DIMS[n] || []).filter(function (p) { return nowNames.indexOf(p) >= 0 && afterNames.indexOf(p) < 0; });
+    if (parts.length) merges.push({ to: n, parts: parts });
+  });
+  return merges;
+}
+function project(value, o) {
+  const sumNow = weatherSum(o.now.weather, o.now.prism);
+  const multNow = sumNow > 0 ? sumNow : 1;
+  const sumAfter = weatherSum(o.add.weather, o.add.prism);
+  const multAfter = sumAfter > 0 ? sumAfter : 1;
+  const mm = multAfter / multNow;
+  const vh = o.valueHalf || 0;
+  return { price: value * mm, ratio: mm, multNow: multNow, multAfter: multAfter,
+    lo: (value - vh) * mm, hi: (value + vh) * mm,
+    merges: resolveMerges(o.now.weather, o.add.weather), afterNames: o.add.weather, prismAfter: o.add.prism };
+}
+// 回傳 {value, half}：half 是四捨五入最大誤差。帶 K/M/B 一律當作兩位小數（1.35B 的 half 是 0.005B）
+function parseValue(t) {
+  const str = String(t || "").replace(/[,，\s_]/g, "");
+  const m = str.match(/^(\d+)(?:\.(\d+))?([kKmMbB萬万億亿兆])?$/);
+  if (!m) return null;
+  const U = { k: 1e3, K: 1e3, m: 1e6, M: 1e6, b: 1e9, B: 1e9, "萬": 1e4, "万": 1e4, "億": 1e8, "亿": 1e8, "兆": 1e12 };
+  const unit = m[3] ? U[m[3]] : 1;
+  const dec = /[kKmMbB]/.test(m[3] || "") ? 2 : (m[2] ? m[2].length : 0);
+  return { value: parseFloat(m[1] + (m[2] ? "." + m[2] : "")) * unit, half: 0.5 * Math.pow(10, -dec) * unit };
+}
+// </calc>
 
-        function filterWeather(gridId, keyword) {
-            const grid = document.getElementById(gridId);
-            const tags = grid.querySelectorAll('.weather-tag');
-            const query = keyword.trim().toLowerCase();
-            tags.forEach(tag => {
-                const name = tag.getAttribute('data-name');
-                if (name.includes(query)) tag.style.display = 'flex';
-                else tag.style.display = 'none';
-            });
-        }
+/* ========== 畫面 ========== */
+const $ = function (id) { return document.getElementById(id); };
+const S = {
+  crop: null, q: null,
+  now: { weather: new Set(), prism: null },
+  add: { weather: new Set(), prism: null }
+};
 
-        function formatPrice(val) {
-            if (val >= 1000000000) return (val / 1000000000).toFixed(2) + ' B';
-            if (val >= 1000000) return (val / 1000000).toFixed(2) + ' M';
-            if (val >= 1000) return (val / 1000).toFixed(2) + ' K';
-            return val.toFixed(2);
-        }
+function num(el) { const v = parseFloat(el.value); return isFinite(v) && v > 0 ? v : 0; }
+function trim(n, d) { return String(parseFloat(n.toFixed(d == null ? 2 : d))); }
+function fmt(n) { return Math.round(n).toLocaleString("en-US"); }
+// 顯示用：K / M / B，兩位小數
+function fmtK(n) {
+  const a = Math.abs(n);
+  if (a >= 1e9) return (n / 1e9).toFixed(2) + "B";
+  if (a >= 1e6) return (n / 1e6).toFixed(2) + "M";
+  if (a >= 1e3) return (n / 1e3).toFixed(2) + "K";
+  return String(Math.round(n));
+}
 
-        function getWeatherSum(stateSet) {
-            let sum = 0;
-            weatherDict.forEach(item => {
-                if (stateSet.has(item.name)) sum += item.val;
-            });
-            return sum;
-        }
+/* 果實下拉 */
+const cropEl = $("crop"), listEl = $("croplist");
+let active = -1, shown = [];
+function poolOf(qi) {
+  const names = QUALITY[qi][2];
+  if (names) return CROPS.filter(function (c) { return names.indexOf(c.n) >= 0; });
+  const used = [];
+  QUALITY.forEach(function (q) { if (q[2]) q[2].forEach(function (n) { used.push(n); }); });
+  return CROPS.filter(function (c) { return used.indexOf(c.n) < 0; });
+}
+// 沒勾品質時，從至臻往下排到普通；勾了就只列那一種
+function poolList() {
+  if (S.q != null) return poolOf(S.q);
+  let out = [];
+  for (let k = QUALITY.length - 1; k >= 0; k--) out = out.concat(poolOf(k));
+  return out;
+}
+function renderQuality() {
+  const box = $("quality"); box.innerHTML = "";
+  QUALITY.forEach(function (q, i) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.setAttribute("data-t", q[1]);
+    b.setAttribute("aria-pressed", S.q === i ? "true" : "false");
+    b.textContent = q[0];
+    b.addEventListener("click", function () {
+      S.q = S.q === i ? null : i;
+      if (S.crop && poolList().indexOf(S.crop) < 0) { S.crop = null; cropEl.value = ""; $("max").value = ""; }
+      renderQuality(); render();
+      cropEl.focus(); openList();   // 選完品質直接跳出果實名單
+    });
+    box.appendChild(b);
+  });
+}
+function renderList() {
+  const q = cropEl.value.trim();
+  // 完全相同的排第一，其次是名稱包含輸入的，其他果實接在後面
+  const exactH = poolList().filter(function (c) { return q && c.n === q; });
+  const partH = poolList().filter(function (c) { return q && c.n !== q && c.n.indexOf(q) !== -1; });
+  const rest = poolList().filter(function (c) { return !q || c.n.indexOf(q) === -1; });
+  shown = exactH.concat(partH, rest);
+  listEl.innerHTML = "";
+  if (!shown.length) {
+    const li = document.createElement("li");
+    li.className = "empty"; li.textContent = "沒有這個果實，不選也可以直接往下填";
+    listEl.appendChild(li);
+  }
+  shown.forEach(function (c, i) {
+    const li = document.createElement("li");
+    li.setAttribute("role", "option");
+    li.setAttribute("aria-selected", i === active ? "true" : "false");
+    const a = document.createElement("span"); a.textContent = c.n;
+    const b = document.createElement("span"); b.className = "meta"; b.textContent = (c.max == null ? "?" : c.max) + "kg";
+    li.appendChild(a); li.appendChild(b);
+    li.addEventListener("pointerdown", function (e) { e.preventDefault(); pick(c); });
+    listEl.appendChild(li);
+  });
+}
+function openList() { renderList(); listEl.hidden = false; cropEl.setAttribute("aria-expanded", "true"); }
+function closeList() { listEl.hidden = true; cropEl.setAttribute("aria-expanded", "false"); active = -1; }
+function pick(c) {
+  S.crop = c; cropEl.value = c.n;
+  $("max").value = c.max == null ? "" : c.max;
+  $("max").placeholder = c.max == null ? "?" : "";
+  closeList(); render();
+}
+function scrollActive() { const e = listEl.children[active]; if (e && e.scrollIntoView) e.scrollIntoView({ block: "nearest" }); }
+cropEl.addEventListener("focus", openList);
+cropEl.addEventListener("blur", closeList);
+cropEl.addEventListener("input", function () {
+  active = -1;
+  const exact = poolList().filter(function (c) { return c.n === cropEl.value.trim(); })[0];
+  if (exact) { pick(exact); openList(); return; }
+  S.crop = null; openList(); render();
+});
+cropEl.addEventListener("keydown", function (e) {
+  if (e.key === "ArrowDown") { e.preventDefault(); if (listEl.hidden) openList(); active = Math.min(active + 1, shown.length - 1); renderList(); scrollActive(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); active = Math.max(active - 1, 0); renderList(); scrollActive(); }
+  else if (e.key === "Enter" && active >= 0 && shown[active]) { e.preventDefault(); pick(shown[active]); }
+  else if (e.key === "Escape") { closeList(); }
+});
 
-        function calculateSim() {
-            const rawPrice = parseFloat(document.getElementById('currPrice').value) || 0;
-            const unit = parseFloat(document.getElementById('currUnit').value) || 1;
-            const currPrice = rawPrice * unit;
+/* 天氣按鈕（現有、新增各一組） */
+function chip(label, mul, tier, pressed, disabled, onClick) {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "chip"; b.setAttribute("data-t", tier);
+  b.setAttribute("aria-pressed", pressed ? "true" : "false");
+  const t = document.createElement("span"); t.textContent = label;
+  const x = document.createElement("span"); x.className = "x"; x.textContent = "×" + mul;
+  b.appendChild(t); b.appendChild(x);
+  if (disabled) { b.disabled = true; b.title = "被已選的天氣取代，不能同時選"; }
+  else { b.addEventListener("click", onClick); }
+  return b;
+}
+function buildGroup(key, gone) {
+  const st = S[key];
+  const w = $("weather-" + key); w.innerHTML = "";
+  WEATHER.forEach(function (o) {
+    const dis = gone.has(o[0]);
+    w.appendChild(chip(o[0], o[1], o[2], st.weather.has(o[0]) && !dis, dis, function () {
+      const on = !st.weather.has(o[0]);
+      setWeather(st.weather, o[0], on);
+      if (key === "now") setWeather(S.add.weather, o[0], on);   // 現在選的，之後預設也選
+      renderChips(); render();
+    }));
+  });
+  const p = $("prism-" + key); p.innerHTML = "";
+  PRISM.forEach(function (o, i) {
+    p.appendChild(chip(o[0], o[1], o[2], st.prism === i, false, function () {
+      const old = st.prism;
+      st.prism = old === i ? null : i;
+      if (key === "now") {
+        if (st.prism != null) S.add.prism = st.prism;
+        else if (S.add.prism === old) S.add.prism = null;
+      }
+      renderChips(); render();
+    }));
+  });
+}
+function renderChips() {
+  buildGroup("now", consumedSet(Array.from(S.now.weather)));
+  buildGroup("add", consumedSet(Array.from(S.add.weather)));
+}
+$("clear-now").addEventListener("click", function () {
+  S.now.weather.forEach(function (n) { S.add.weather.delete(n); });
+  if (S.add.prism === S.now.prism) S.add.prism = null;
+  S.now.weather.clear(); S.now.prism = null; renderChips(); render();
+});
+$("clear-add").addEventListener("click", function () {
+  S.add.weather = new Set(S.now.weather); S.add.prism = S.now.prism; renderChips(); render();
+});
 
-            const currWeatherSum = getWeatherSum(currSelectedWeather);
-            const targetWeatherSum = getWeatherSum(targetSelectedWeather);
+/* 結果 */
+function pctText(id, w, max) {
+  const el = $(id);
+  if (max > 0 && w > 0) {
+    el.textContent = "重量佔比 " + (w / max * 100).toFixed(1) + "%" + (w > max ? "，超過最高重量，請確認數字" : "");
+    el.className = "pct" + (w > max ? " over" : "");
+  } else { el.textContent = ""; el.className = "pct"; }
+}
+function listNames(names, prism) {
+  const out = names.filter(function (n) { return weatherMul[n] != null; }).map(function (n) { return n + " " + weatherMul[n]; });
+  if (prism != null) out.push(PRISM[prism][0] + " " + PRISM[prism][1]);
+  return out;
+}
+function render() {
+  const raw = $("val").value.trim();
+  const pv = parseValue(raw);
+  const val = pv ? pv.value : 0;
+  const wNow = num($("w-now")), max = num($("max"));
+  pctText("pct-now", wNow, max);
 
-            const baseNoWeatherPrice = currPrice / (1.0 + currWeatherSum);
-            const targetPrice = baseNoWeatherPrice * (1.0 + targetWeatherSum);
-            const gainAmount = targetPrice - currPrice;
-            const gainPct = currPrice > 0 ? (gainAmount / currPrice) * 100 : 0;
+  const label = cropEl.value.trim() || "這顆果實";
+  const ready = val > 0 && wNow > 0;
+  let hint = "";
+  if (!raw) hint = "請輸入遊戲顯示的現在價值";
+  else if (!(val > 0)) hint = "價值請輸入數字，例如 1.35B 或 35.90M";
+  else if (!(wNow > 0)) hint = "請輸入現在重量";
 
-            document.getElementById('baseNoWeatherPrice').innerText = formatPrice(baseNoWeatherPrice);
-            document.getElementById('targetPrice').innerText = formatPrice(targetPrice);
-            document.getElementById('gainAmount').innerText = (gainAmount >= 0 ? '+' : '') + formatPrice(gainAmount);
+  const dash = "—";
+  let rangeText = "", rangeOver = false;
+  let price = dash, cn = hint, rNow = dash, rRatio = dash, rSum = dash, rMerge = dash, rFormula = dash, picked = "";
+  if (ready) {
+    const r = project(val, {
+      valueHalf: pv.half,
+      now: { weather: Array.from(S.now.weather), prism: S.now.prism },
+      add: { weather: Array.from(S.add.weather), prism: S.add.prism }
+    });
+    price = fmt(r.price); cn = "約 " + fmtK(r.price);
+    const spread = (r.hi - r.lo) / 2 / r.price * 100;
+    rangeText = "範圍 " + fmt(r.lo) + " 到 " + fmt(r.hi) + (spread < 0.005 ? "（幾乎沒有誤差）" : "（±" + trim(spread, spread < 1 ? 2 : 1) + "%）");
+    if (spread > 2) { rangeText += "。價值位數太少，範圍很寬，請照遊戲顯示的位數輸入，例如 1.35B"; rangeOver = true; }
+    rNow = fmtK(val);
+    rRatio = "×" + trim(r.ratio, 3);
+    rSum = "×" + trim(r.multNow) + " → ×" + trim(r.multAfter);
+    rMerge = r.merges.length ? r.merges.map(function (m) { return m.to + " 取代 " + m.parts.join("、"); }).join("；") : "無";
+    rFormula = fmtK(val) + " × (" + trim(r.multAfter) + " ÷ " + trim(r.multNow) + ")";
+    const pn = listNames(Array.from(S.now.weather), S.now.prism);
+    const pa = listNames(r.afterNames, r.prismAfter);
+    picked = "現在天氣：" + (pn.length ? pn.join(" + ") : "無") + "。之後天氣：" + (pa.length ? pa.join(" + ") : "無") + "。";
+  }
+  $("r-name").textContent = label;
+  $("b-name").textContent = label;
+  $("r-price").textContent = price;
+  $("b-price").textContent = price;
+  $("r-cn").textContent = cn;
+  $("r-range").textContent = rangeText;
+  $("r-range").className = "range" + (rangeOver ? " over" : "");
+  $("r-now").textContent = rNow;
+  $("r-ratio").textContent = rRatio;
+  $("r-sum").textContent = rSum;
+  $("r-merge").textContent = rMerge;
+  $("r-formula").textContent = rFormula;
+  $("r-picked").textContent = picked;
+}
+$("w-now").addEventListener("input", render);
+["val", "max"].forEach(function (id) { $(id).addEventListener("input", render); });
 
-            const pctTag = document.getElementById('gainPercent');
-            pctTag.innerText = (gainPct >= 0 ? '+' : '') + gainPct.toFixed(1) + '%';
-            pctTag.style.background = gainPct >= 0 ? '#065f46' : '#991b1b';
-            pctTag.style.color = gainPct >= 0 ? '#6ee7b7' : '#fca5a5';
-        }
-
-        function calculateBase() {
-            const rawPrice = parseFloat(document.getElementById('baseCalcPrice').value) || 0;
-            const unit = parseFloat(document.getElementById('baseCalcUnit').value) || 1;
-            const price = rawPrice * unit;
-
-            const weight = parseFloat(document.getElementById('baseCalcWeight').value) || 1;
-            const quality = parseFloat(document.getElementById('baseCalcQuality').value) || 1;
-            const weatherSum = getWeatherSum(baseSelectedWeather);
-
-            const weightFactor = Math.pow(weight, 1.5);
-            const weatherFactor = 1.0 + weatherSum;
-
-            if (weightFactor === 0 || weatherFactor === 0) return;
-
-            const calculatedBase = price / (weightFactor * quality * weatherFactor);
-            const suggestedBase = Math.round(calculatedBase / 500) * 500;
-
-            document.getElementById('calculatedBaseValue').innerText = calculatedBase.toFixed(2);
-            document.getElementById('suggestedBaseValue').innerText = suggestedBase.toLocaleString() + ' (約)';
-        }
-
-        function switchTab(tabName) {
-            document.getElementById('btn-sim').classList.remove('active');
-            document.getElementById('btn-base').classList.remove('active');
-            document.getElementById('sim-tab').classList.remove('active');
-            document.getElementById('base-tab').classList.remove('active');
-
-            if (tabName === 'sim') {
-                document.getElementById('btn-sim').classList.add('active');
-                document.getElementById('sim-tab').classList.add('active');
-            } else {
-                document.getElementById('btn-base').classList.add('active');
-                document.getElementById('base-tab').classList.add('active');
-            }
-        }
-
-        window.onload = () => {
-            initWeatherGrids();
-            calculateSim();
-            calculateBase();
-        };
-    </script>
-
-</body>
-
-</html>
+closeList();
+renderQuality();
+renderChips();
+render();
+</script>
